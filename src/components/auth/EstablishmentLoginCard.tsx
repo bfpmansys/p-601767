@@ -15,11 +15,7 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// Admin credentials
-const ADMIN_EMAIL = "vfireinspectval@gmail.com";
-const ADMIN_PASSWORD = "vfireinspectval2025";
-
-const LoginCard: React.FC = () => {
+const EstablishmentLoginCard: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,26 +36,19 @@ const LoginCard: React.FC = () => {
   const onSubmit = (data: LoginFormValues) => {
     setIsLoading(true);
     
-    // Check if credentials match admin credentials
-    if (data.email === ADMIN_EMAIL && data.password === ADMIN_PASSWORD) {
-      // Simulate API call delay
-      setTimeout(() => {
-        // Store admin authentication state
-        localStorage.setItem('adminAuthenticated', 'true');
-        
-        // Navigate to admin dashboard
-        toast.success("Welcome, Admin!");
-        navigate("/admin/dashboard");
-        setIsLoading(false);
-      }, 1000);
-    } else {
-      // This would be where you check for establishment owner credentials
-      // For now, we'll just show an error
-      setTimeout(() => {
-        toast.error("Invalid credentials!");
-        setIsLoading(false);
-      }, 1000);
-    }
+    // This would connect to your backend to verify establishment owner credentials
+    // For now, we'll mock the authentication
+    setTimeout(() => {
+      // In a real application, you would validate against your user database
+      if (data.email.includes("establishment") && data.password.length >= 6) {
+        localStorage.setItem('establishmentAuthenticated', 'true');
+        toast.success("Welcome, Establishment Owner!");
+        navigate("/establishment/dashboard");
+      } else {
+        toast.error("Invalid establishment owner credentials!");
+      }
+      setIsLoading(false);
+    }, 1000);
   };
 
   return (
@@ -71,10 +60,10 @@ const LoginCard: React.FC = () => {
         <img
           src="https://cdn.builder.io/api/v1/image/assets/TEMP/3498d51df3ff7e2a1f563eb8e42a91003b0e7ced"
           className="w-[88px] h-[131px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] mt-3.5 rounded-[20px] max-sm:w-[70px] max-sm:h-[104px]"
-          alt="Admin Logo"
+          alt="Establishment Logo"
         />
         <h1 className="text-[#F00] text-[40px] font-bold mt-[35px] max-sm:text-[32px]">
-          ADMIN LOG IN
+          ESTABLISHMENT LOG IN
         </h1>
 
         <AuthInput
@@ -123,4 +112,4 @@ const LoginCard: React.FC = () => {
   );
 };
 
-export default LoginCard;
+export default EstablishmentLoginCard;
