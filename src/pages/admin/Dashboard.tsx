@@ -1,19 +1,108 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/common/Header";
 import ButtonCustom from "@/components/ui/button-custom";
+import { CheckCircle, XCircle, Eye } from "lucide-react";
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedBusinesses, setSelectedBusinesses] = useState<any[]>([]);
   
   // Check if admin is authenticated
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('adminAuthenticated') === 'true';
     if (!isAuthenticated) {
       navigate('/');
+    } else {
+      fetchPendingRequests();
     }
   }, [navigate]);
+
+  const fetchPendingRequests = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('pending_users')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      setPendingRequests(data || []);
+    } catch (error: any) {
+      console.error("Error fetching pending requests:", error);
+      toast.error("Failed to load pending requests");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleViewDetails = async (request: any) => {
+    setSelectedRequest(request);
+    
+    try {
+      const { data, error } = await supabase
+        .from('pending_businesses')
+        .select('*')
+        .eq('pending_user_id', request.id);
+        
+      if (error) throw error;
+      
+      setSelectedBusinesses(data || []);
+    } catch (error: any) {
+      console.error("Error fetching business details:", error);
+      toast.error("Failed to load business details");
+    }
+  };
+
+  const handleApprove = async (request: any) => {
+    try {
+      // Call the edge function to handle the approval process
+      const { data, error } = await supabase.functions.invoke('approve-establishment', {
+        body: { userId: request.id }
+      });
+      
+      if (error) throw error;
+      
+      toast.success(`Registration for ${request.first_name} ${request.last_name} has been approved`);
+      
+      // Refresh the list
+      fetchPendingRequests();
+      setSelectedRequest(null);
+      
+    } catch (error: any) {
+      console.error("Error approving request:", error);
+      toast.error(error.message || "Failed to approve the registration");
+    }
+  };
+
+  const handleReject = async (request: any) => {
+    try {
+      const { error } = await supabase
+        .from('pending_users')
+        .update({ status: 'rejected' })
+        .eq('id', request.id);
+        
+      if (error) throw error;
+      
+      toast.success(`Registration for ${request.first_name} ${request.last_name} has been rejected`);
+      
+      // Refresh the list
+      fetchPendingRequests();
+      setSelectedRequest(null);
+      
+    } catch (error: any) {
+      console.error("Error rejecting request:", error);
+      toast.error("Failed to reject the registration");
+    }
+  };
 
   const handleLogout = () => {
     // Clear admin authentication
@@ -33,17 +122,150 @@ const AdminDashboard: React.FC = () => {
             </ButtonCustom>
           </div>
           
-          <div className="bg-neutral-100 p-8 rounded-[20px] border border-[#524F4F]">
-            <h2 className="text-2xl font-semibold mb-6">Welcome, Admin!</h2>
-            <p className="text-lg">
-              This is the admin dashboard for V-FIRE INSPECT. From here, you can manage inspections, 
-              view reports, and oversee establishment owners' accounts.
-            </p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Dashboard Overview */}
+            <div className="lg:col-span-1 bg-neutral-100 p-6 rounded-[20px] border border-[#524F4F]">
+              <h2 className="text-2xl font-semibold mb-6">Overview</h2>
+              
+              <div className="grid grid-cols-1 gap-6">
+                <DashboardCard 
+                  title="Pending Registrations" 
+                  count={pendingRequests.length.toString()} 
+                />
+                <DashboardCard title="Approved Establishments" count="0" />
+                <DashboardCard title="Total Inspections" count="0" />
+              </div>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-              <DashboardCard title="Pending Inspections" count="12" />
-              <DashboardCard title="Completed Inspections" count="48" />
-              <DashboardCard title="Registered Establishments" count="24" />
+            {/* Pending Registrations */}
+            <div className="lg:col-span-2 bg-neutral-100 p-6 rounded-[20px] border border-[#524F4F]">
+              <h2 className="text-2xl font-semibold mb-6">Pending Registrations</h2>
+              
+              {isLoading ? (
+                <div className="text-center py-8">Loading...</div>
+              ) : pendingRequests.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No pending registration requests</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-full bg-white rounded-lg overflow-hidden shadow">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="py-3 px-4 text-left">Name</th>
+                        <th className="py-3 px-4 text-left">Email</th>
+                        <th className="py-3 px-4 text-left">Date</th>
+                        <th className="py-3 px-4 text-left">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingRequests.map((request) => (
+                        <tr key={request.id} className="border-t border-gray-200">
+                          <td className="py-3 px-4">
+                            {request.first_name} {request.middle_name ? request.middle_name + ' ' : ''}{request.last_name}
+                          </td>
+                          <td className="py-3 px-4">{request.email}</td>
+                          <td className="py-3 px-4">
+                            {new Date(request.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleViewDetails(request)}
+                                className="p-1 text-blue-600 hover:text-blue-800"
+                                title="View Details"
+                              >
+                                <Eye size={20} />
+                              </button>
+                              <button
+                                onClick={() => handleApprove(request)}
+                                className="p-1 text-green-600 hover:text-green-800"
+                                title="Approve"
+                              >
+                                <CheckCircle size={20} />
+                              </button>
+                              <button
+                                onClick={() => handleReject(request)}
+                                className="p-1 text-red-600 hover:text-red-800"
+                                title="Reject"
+                              >
+                                <XCircle size={20} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              
+              {selectedRequest && (
+                <div className="mt-8 p-6 bg-white rounded-lg shadow">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold">Registration Details</h3>
+                    <button
+                      onClick={() => setSelectedRequest(null)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <p className="text-gray-500">Full Name</p>
+                      <p className="font-medium">
+                        {selectedRequest.first_name} {selectedRequest.middle_name || ''} {selectedRequest.last_name}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Email</p>
+                      <p className="font-medium">{selectedRequest.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Application Date</p>
+                      <p className="font-medium">
+                        {new Date(selectedRequest.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <h4 className="font-semibold mb-2">Business Details</h4>
+                  {selectedBusinesses.length > 0 ? (
+                    <div className="space-y-4">
+                      {selectedBusinesses.map((business) => (
+                        <div key={business.id} className="p-4 bg-gray-50 rounded border border-gray-200">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-gray-500">Business Name</p>
+                              <p className="font-medium">{business.business_name}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">DTI Certificate No.</p>
+                              <p className="font-medium">{business.dti_certificate_no}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No business details available</p>
+                  )}
+                  
+                  <div className="mt-6 flex justify-end space-x-4">
+                    <ButtonCustom
+                      onClick={() => handleReject(selectedRequest)}
+                      className="bg-gray-500 hover:bg-gray-600"
+                    >
+                      REJECT
+                    </ButtonCustom>
+                    <ButtonCustom
+                      onClick={() => handleApprove(selectedRequest)}
+                    >
+                      APPROVE
+                    </ButtonCustom>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

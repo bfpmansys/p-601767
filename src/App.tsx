@@ -10,6 +10,9 @@ import LoginChoice from "./pages/LoginChoice";
 import AdminDashboard from "./pages/admin/Dashboard";
 import EstablishmentDashboard from "./pages/establishment/Dashboard";
 import EstablishmentLoginCard from "./components/auth/EstablishmentLoginCard";
+import EstablishmentRegister from "./pages/EstablishmentRegister";
+import ChangePassword from "./pages/ChangePassword";
+import ForgotPassword from "./pages/ForgotPassword";
 import Header from "@/components/common/Header";
 
 const queryClient = new QueryClient();
@@ -41,6 +44,9 @@ const App = () => (
             } 
           />
           <Route path="/establishment/dashboard" element={<EstablishmentDashboard />} />
+          <Route path="/establishment-register" element={<EstablishmentRegister />} />
+          <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />

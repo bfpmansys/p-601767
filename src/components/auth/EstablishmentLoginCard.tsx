@@ -5,6 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import AuthInput from "./AuthInput";
 import ButtonCustom from "../ui/button-custom";
 
@@ -33,22 +34,58 @@ const EstablishmentLoginCard: React.FC = () => {
     },
   });
 
-  const onSubmit = (data: LoginFormValues) => {
+  const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     
-    // This would connect to your backend to verify establishment owner credentials
-    // For now, we'll mock the authentication
-    setTimeout(() => {
-      // In a real application, you would validate against your user database
-      if (data.email.includes("establishment") && data.password.length >= 6) {
-        localStorage.setItem('establishmentAuthenticated', 'true');
+    try {
+      // Sign in with Supabase Auth
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+      
+      if (error) throw error;
+      
+      // Check if user has the establishment role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', authData.user.id)
+        .eq('role', 'establishment')
+        .maybeSingle();
+      
+      if (roleError) throw roleError;
+      
+      if (!roleData) {
+        await supabase.auth.signOut();
+        throw new Error("You don't have establishment owner permissions");
+      }
+      
+      // Check if password has been changed
+      const { data: userData, error: userError } = await supabase
+        .from('approved_users')
+        .select('password_changed')
+        .eq('id', authData.user.id)
+        .single();
+      
+      if (userError) throw userError;
+      
+      localStorage.setItem('establishmentAuthenticated', 'true');
+      
+      if (!userData.password_changed) {
+        // Redirect to change password page
+        toast.success("Please change your temporary password");
+        navigate("/change-password");
+      } else {
         toast.success("Welcome, Establishment Owner!");
         navigate("/establishment/dashboard");
-      } else {
-        toast.error("Invalid establishment owner credentials!");
       }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast.error(error.message || "Invalid credentials");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -98,7 +135,10 @@ const EstablishmentLoginCard: React.FC = () => {
           </p>
         )}
 
-        <div className="text-black text-base italic font-medium self-start ml-14 mt-1.5 cursor-pointer hover:underline">
+        <div 
+          className="text-black text-base italic font-medium self-start ml-14 mt-1.5 cursor-pointer hover:underline"
+          onClick={() => navigate("/forgot-password")}
+        >
           Forgot Password?
         </div>
 
@@ -109,6 +149,18 @@ const EstablishmentLoginCard: React.FC = () => {
         >
           {isLoading ? "LOGGING IN..." : "LOG IN"}
         </ButtonCustom>
+        
+        <div className="mt-6 text-center">
+          <p className="text-black text-base">
+            Don't have an account?{" "}
+            <span 
+              className="text-[#FE623F] font-bold cursor-pointer"
+              onClick={() => navigate("/establishment-register")}
+            >
+              Register
+            </span>
+          </p>
+        </div>
       </form>
     </div>
   );
