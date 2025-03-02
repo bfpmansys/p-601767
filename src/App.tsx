@@ -10,6 +10,7 @@ import LoginChoice from "./pages/LoginChoice";
 import AdminDashboard from "./pages/admin/Dashboard";
 import EstablishmentDashboard from "./pages/establishment/Dashboard";
 import EstablishmentLoginCard from "./components/auth/EstablishmentLoginCard";
+import Header from "@/components/common/Header";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,3 @@ const App = () => (
 );
 
 export default App;
-
-// Import Header for the establishment login route
-import Header from "@/components/common/Header";

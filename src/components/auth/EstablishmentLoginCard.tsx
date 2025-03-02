@@ -74,6 +74,7 @@ const EstablishmentLoginCard: React.FC = () => {
           iconAlt="Email Icon"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          {...register("email")}
         />
         {errors.email && (
           <p className="text-red-500 text-sm -mt-6 mb-2 self-start ml-14">
@@ -89,6 +90,7 @@ const EstablishmentLoginCard: React.FC = () => {
           iconAlt="Password Icon"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          {...register("password")}
         />
         {errors.password && (
           <p className="text-red-500 text-sm -mt-6 mb-2 self-start ml-14">
