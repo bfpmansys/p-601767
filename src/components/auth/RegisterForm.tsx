@@ -61,25 +61,14 @@ const RegisterForm: React.FC = () => {
         .from("pending_users")
         .select("id")
         .eq("email", data.email)
-        .maybeSingle();
+        .single();
         
-      if (checkError) throw checkError;
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
       
       if (existingPendingUsers) {
         toast.error("This email is already registered and pending approval");
-        setIsLoading(false);
-        return;
-      }
-      
-      const { data: existingUsers, error: userError } = await supabase
-        .from("approved_users")
-        .select("id, email")
-        .eq("email", data.email);
-        
-      if (userError) throw userError;
-      
-      if (existingUsers && existingUsers.length > 0) {
-        toast.error("This email is already registered");
         setIsLoading(false);
         return;
       }
