@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { z } from "zod";
@@ -9,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import ButtonCustom from "@/components/ui/button-custom";
 
-// Define the validation schema
 const registerSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   middle_name: z.string().optional(),
@@ -59,7 +57,6 @@ const RegisterForm: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Check if email is already registered in pending_users
       const { data: existingPendingUsers, error: checkError } = await supabase
         .from("pending_users")
         .select("id")
@@ -74,23 +71,19 @@ const RegisterForm: React.FC = () => {
         return;
       }
       
-      // Check if email is already registered in Supabase Auth
-      // We can't directly check auth users from the client, so we'll check approved_users instead
-      const { data: existingApprovedUser, error: approvedUserError } = await supabase
+      const { data: existingUsers, error: userError } = await supabase
         .from("approved_users")
-        .select("id")
-        .eq("email", data.email)
-        .maybeSingle();
+        .select("id, email")
+        .eq("email", data.email);
         
-      if (approvedUserError) throw approvedUserError;
+      if (userError) throw userError;
       
-      if (existingApprovedUser) {
+      if (existingUsers && existingUsers.length > 0) {
         toast.error("This email is already registered");
         setIsLoading(false);
         return;
       }
       
-      // Insert into pending_users
       const { data: newUser, error: insertError } = await supabase
         .from("pending_users")
         .insert({
@@ -105,7 +98,6 @@ const RegisterForm: React.FC = () => {
         
       if (insertError) throw insertError;
       
-      // Insert businesses
       const businessInserts = data.businesses.map(business => ({
         pending_user_id: newUser.id,
         business_name: business.business_name,
@@ -143,7 +135,6 @@ const RegisterForm: React.FC = () => {
       
       <form onSubmit={handleSubmit(onSubmit)} className="w-full px-8 max-sm:px-4">
         <div className="grid grid-cols-1 gap-4">
-          {/* Name Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-black font-semibold mb-1">
@@ -192,7 +183,6 @@ const RegisterForm: React.FC = () => {
             </div>
           </div>
           
-          {/* Email */}
           <div>
             <label className="block text-black font-semibold mb-1">
               Email<span className="text-red-500">*</span>
@@ -210,7 +200,6 @@ const RegisterForm: React.FC = () => {
             )}
           </div>
           
-          {/* Businesses */}
           <div className="mt-4">
             <div className="flex justify-between items-center mb-2">
               <label className="block text-black font-semibold">
@@ -287,7 +276,6 @@ const RegisterForm: React.FC = () => {
             ))}
           </div>
           
-          {/* Terms and Conditions */}
           <div className="mt-2 flex items-start">
             <input
               type="checkbox"
