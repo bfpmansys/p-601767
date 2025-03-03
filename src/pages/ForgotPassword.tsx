@@ -35,10 +35,9 @@ const ForgotPassword: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const { data: responseData, error } = await supabase
-        .functions.invoke('request-password-reset', {
-          body: { email: data.email }
-        });
+      const { data: responseData, error } = await supabase.functions.invoke('request-password-reset', {
+        body: { email: data.email }
+      });
       
       if (error) {
         console.error("Password reset error:", error);
@@ -48,7 +47,6 @@ const ForgotPassword: React.FC = () => {
         setIsSubmitted(true);
         toast.success("If your email is registered, you will receive a temporary password shortly");
       }
-      
     } catch (error: any) {
       console.error("Password reset error:", error);
       toast.error(error.message || "An unexpected error occurred");

@@ -40,6 +40,7 @@ serve(async (req) => {
     const { data: user, error: userError } = await supabase.auth.admin.getUserByEmail(email)
 
     if (userError || !user) {
+      console.log('User not found or error:', userError)
       // Don't reveal that the user doesn't exist for security reasons
       return new Response(
         JSON.stringify({ 
@@ -54,6 +55,8 @@ serve(async (req) => {
     const tempPassword = Math.random().toString(36).substring(2, 10) + 
                          Math.random().toString(36).substring(2, 10)
 
+    console.log('Generated temporary password')
+
     // Update the user's password in the auth system
     const { error: updateError } = await supabase.auth.admin.updateUserById(
       user.id,
@@ -61,8 +64,11 @@ serve(async (req) => {
     )
 
     if (updateError) {
+      console.error('Error updating user password:', updateError)
       throw new Error('Error updating user password: ' + updateError.message)
     }
+
+    console.log('User password updated successfully')
 
     // Check if the user is in approved_users table and update password_changed flag if needed
     const { data: approvedUser, error: approvedUserError } = await supabase
@@ -81,13 +87,14 @@ serve(async (req) => {
       if (updateUserError) {
         console.error('Error updating user password_changed status:', updateUserError.message)
         // We'll continue anyway, as the password has been reset
+      } else {
+        console.log('User password_changed status updated successfully')
       }
     }
 
-    console.log('Password reset successful. Sending email with temporary password.')
-
     // Send email with temporary password using Resend
     try {
+      console.log('Attempting to send email with Resend')
       const emailResult = await resend.emails.send({
         from: 'Password Reset <onboarding@resend.dev>',
         to: [email],
