@@ -75,11 +75,16 @@ const RegisterForm: React.FC = () => {
       }
       
       // Check if email is already registered in Supabase Auth
-      const { data: existingAuth, error: authError } = await supabase.auth.admin
-        .getUserByEmail(data.email)
-        .catch(() => ({ data: null, error: null }));
+      // We can't directly check auth users from the client, so we'll check approved_users instead
+      const { data: existingApprovedUser, error: approvedUserError } = await supabase
+        .from("approved_users")
+        .select("id")
+        .eq("email", data.email)
+        .maybeSingle();
         
-      if (existingAuth) {
+      if (approvedUserError) throw approvedUserError;
+      
+      if (existingApprovedUser) {
         toast.error("This email is already registered");
         setIsLoading(false);
         return;
