@@ -36,10 +36,13 @@ serve(async (req) => {
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Check if the user exists in the auth.users table
-    const { data: user, error: userError } = await supabase.auth.admin.getUserByEmail(email)
+    // Check if the user exists in the auth system using admin API
+    const { data: userData, error: userError } = await supabase.auth
+      .admin.listUsers({ 
+        filters: { email }
+      })
 
-    if (userError || !user) {
+    if (userError || !userData || userData.users.length === 0) {
       console.log('User not found or error:', userError)
       // Don't reveal that the user doesn't exist for security reasons
       return new Response(
@@ -50,6 +53,9 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    const user = userData.users[0]
+    console.log('User found:', user.id)
 
     // Generate a random temporary password
     const tempPassword = Math.random().toString(36).substring(2, 10) + 
@@ -100,7 +106,7 @@ serve(async (req) => {
         to: [email],
         subject: 'Your Temporary Password',
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <div style="font-family: Poppins, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
             <h1 style="color: #F00; text-align: center;">PASSWORD RESET</h1>
             <p>Your password has been reset as requested. Please use the following temporary password to log in:</p>
             <div style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; font-family: monospace; font-size: 18px; letter-spacing: 1px;">
@@ -109,7 +115,7 @@ serve(async (req) => {
             <p>For security reasons, you will be required to change your password after logging in.</p>
             <p>If you didn't request a password reset, please contact support immediately.</p>
             <div style="margin-top: 30px; text-align: center;">
-              <a href="http://localhost:8080/establishment-login" style="background-color: #F00; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="http://localhost:8080/establishment-login" style="background-color: #FE623F; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 GO TO LOGIN
               </a>
             </div>
