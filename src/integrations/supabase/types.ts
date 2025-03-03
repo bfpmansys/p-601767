@@ -9,16 +9,170 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      approved_businesses: {
+        Row: {
+          business_name: string
+          created_at: string | null
+          dti_certificate_no: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          business_name: string
+          created_at?: string | null
+          dti_certificate_no: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          business_name?: string
+          created_at?: string | null
+          dti_certificate_no?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approved_businesses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "approved_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approved_users: {
+        Row: {
+          created_at: string | null
+          first_name: string
+          id: string
+          last_name: string
+          middle_name: string | null
+          password_changed: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_name: string
+          id: string
+          last_name: string
+          middle_name?: string | null
+          password_changed?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          middle_name?: string | null
+          password_changed?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pending_businesses: {
+        Row: {
+          business_name: string
+          created_at: string | null
+          dti_certificate_no: string
+          id: string
+          pending_user_id: string
+        }
+        Insert: {
+          business_name: string
+          created_at?: string | null
+          dti_certificate_no: string
+          id?: string
+          pending_user_id: string
+        }
+        Update: {
+          business_name?: string
+          created_at?: string | null
+          dti_certificate_no?: string
+          id?: string
+          pending_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_businesses_pending_user_id_fkey"
+            columns: ["pending_user_id"]
+            isOneToOne: false
+            referencedRelation: "pending_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_users: {
+        Row: {
+          created_at: string | null
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          middle_name: string | null
+          status: Database["public"]["Enums"]["request_status"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          middle_name?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          middle_name?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "establishment"
+      request_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
