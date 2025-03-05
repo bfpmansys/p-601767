@@ -13,6 +13,7 @@ const AdminDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [selectedBusinesses, setSelectedBusinesses] = useState<any[]>([]);
+  const [approvedCount, setApprovedCount] = useState(0);
   
   // Check if admin is authenticated
   useEffect(() => {
@@ -21,6 +22,7 @@ const AdminDashboard: React.FC = () => {
       navigate('/');
     } else {
       fetchPendingRequests();
+      fetchApprovedCount();
     }
   }, [navigate]);
 
@@ -44,6 +46,20 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const fetchApprovedCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('approved_users')
+        .select('*', { count: 'exact', head: true });
+        
+      if (error) throw error;
+      
+      setApprovedCount(count || 0);
+    } catch (error: any) {
+      console.error("Error fetching approved count:", error);
+    }
+  };
+
   const handleViewDetails = async (request: any) => {
     setSelectedRequest(request);
     
@@ -64,17 +80,27 @@ const AdminDashboard: React.FC = () => {
 
   const handleApprove = async (request: any) => {
     try {
+      toast.info("Processing approval, please wait...");
+      
       // Call the edge function to handle the approval process
       const { data, error } = await supabase.functions.invoke('approve-establishment', {
         body: { userId: request.id }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error(error.message || "Failed to approve the registration");
+      }
+      
+      if (!data.success) {
+        throw new Error(data.error || "Failed to approve the registration");
+      }
       
       toast.success(`Registration for ${request.first_name} ${request.last_name} has been approved`);
       
-      // Refresh the list
+      // Refresh the lists
       fetchPendingRequests();
+      fetchApprovedCount();
       setSelectedRequest(null);
       
     } catch (error: any) {
@@ -132,7 +158,10 @@ const AdminDashboard: React.FC = () => {
                   title="Pending Registrations" 
                   count={pendingRequests.length.toString()} 
                 />
-                <DashboardCard title="Approved Establishments" count="0" />
+                <DashboardCard 
+                  title="Approved Establishments" 
+                  count={approvedCount.toString()} 
+                />
                 <DashboardCard title="Total Inspections" count="0" />
               </div>
             </div>

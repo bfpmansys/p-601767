@@ -17,7 +17,18 @@ serve(async (req) => {
   }
 
   // Get the request body
-  const { userId } = await req.json()
+  let userId;
+  try {
+    const body = await req.json();
+    userId = body.userId;
+    console.log("Received request with userId:", userId);
+  } catch (error) {
+    console.error("Error parsing request body:", error);
+    return new Response(
+      JSON.stringify({ error: 'Invalid request body' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    )
+  }
 
   if (!userId) {
     return new Response(
@@ -38,8 +49,11 @@ serve(async (req) => {
       .single()
 
     if (pendingUserError || !pendingUser) {
+      console.error('Pending user not found:', pendingUserError);
       throw new Error('Pending user not found: ' + (pendingUserError?.message || ''))
     }
+
+    console.log('Found pending user:', pendingUser.email);
 
     // 2. Get business details for the pending user
     const { data: pendingBusinesses, error: pendingBusinessesError } = await supabase
@@ -48,14 +62,17 @@ serve(async (req) => {
       .eq('pending_user_id', userId)
 
     if (pendingBusinessesError) {
+      console.error('Error retrieving pending businesses:', pendingBusinessesError);
       throw new Error('Error retrieving pending businesses: ' + pendingBusinessesError.message)
     }
 
-    console.log('Approving user:', pendingUser.email)
+    console.log('Found pending businesses:', pendingBusinesses?.length || 0);
 
     // 3. Generate a random temporary password
     const tempPassword = Math.random().toString(36).substring(2, 10) + 
                         Math.random().toString(36).substring(2, 10)
+
+    console.log('Generated temporary password');
 
     // 4. Create a new user in Supabase Auth
     const { data: authUser, error: createUserError } = await supabase.auth.admin.createUser({
@@ -65,10 +82,11 @@ serve(async (req) => {
     })
 
     if (createUserError || !authUser.user) {
+      console.error('Error creating user in Auth:', createUserError);
       throw new Error('Error creating user in Auth: ' + (createUserError?.message || ''))
     }
 
-    console.log('Created auth user:', authUser.user.id)
+    console.log('Created auth user:', authUser.user.id);
 
     // 5. Add the user to the approved_users table
     const { error: approvedUserError } = await supabase
@@ -82,8 +100,11 @@ serve(async (req) => {
       })
 
     if (approvedUserError) {
+      console.error('Error creating approved user:', approvedUserError);
       throw new Error('Error creating approved user: ' + approvedUserError.message)
     }
+
+    console.log('Added user to approved_users table');
 
     // 6. Add the user role
     const { error: roleError } = await supabase
@@ -94,22 +115,30 @@ serve(async (req) => {
       })
 
     if (roleError) {
+      console.error('Error adding user role:', roleError);
       throw new Error('Error adding user role: ' + roleError.message)
     }
 
+    console.log('Added user role');
+
     // 7. Add businesses to approved_businesses
-    const approvedBusinesses = pendingBusinesses.map(business => ({
-      user_id: authUser.user.id,
-      business_name: business.business_name,
-      dti_certificate_no: business.dti_certificate_no
-    }))
+    if (pendingBusinesses && pendingBusinesses.length > 0) {
+      const approvedBusinesses = pendingBusinesses.map(business => ({
+        user_id: authUser.user.id,
+        business_name: business.business_name,
+        dti_certificate_no: business.dti_certificate_no
+      }))
 
-    const { error: approvedBusinessesError } = await supabase
-      .from('approved_businesses')
-      .insert(approvedBusinesses)
+      const { error: approvedBusinessesError } = await supabase
+        .from('approved_businesses')
+        .insert(approvedBusinesses)
 
-    if (approvedBusinessesError) {
-      throw new Error('Error creating approved businesses: ' + approvedBusinessesError.message)
+      if (approvedBusinessesError) {
+        console.error('Error creating approved businesses:', approvedBusinessesError);
+        throw new Error('Error creating approved businesses: ' + approvedBusinessesError.message)
+      }
+      
+      console.log('Added businesses to approved_businesses table');
     }
 
     // 8. Update pending_user status to approved
@@ -119,10 +148,11 @@ serve(async (req) => {
       .eq('id', userId)
 
     if (updateError) {
+      console.error('Error updating pending user status:', updateError);
       throw new Error('Error updating pending user status: ' + updateError.message)
     }
 
-    console.log('User approval process completed successfully')
+    console.log('Updated pending user status to approved');
 
     // Note: In a production environment, you would typically send an email with the temporary password here
     // For now, we'll return the temporary password as part of the response (for testing)
@@ -139,7 +169,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Error in approve-establishment function:', error)
+    console.error('Error in approve-establishment function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
