@@ -64,7 +64,7 @@ const RegistrationDetailsView: React.FC<RegistrationDetailsViewProps> = ({
       </div>
       
       <h4 className="font-semibold mb-2">Business Details</h4>
-      {selectedBusinesses.length > 0 ? (
+      {selectedBusinesses && selectedBusinesses.length > 0 ? (
         <div className="space-y-4">
           {selectedBusinesses.map((business) => (
             <div key={business.id} className="p-4 bg-gray-50 rounded border border-gray-200">

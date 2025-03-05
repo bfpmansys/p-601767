@@ -73,6 +73,7 @@ const AdminDashboard: React.FC = () => {
         
       if (error) throw error;
       
+      console.log("Fetched business details:", data);
       setSelectedBusinesses(data || []);
     } catch (error: any) {
       console.error("Error fetching business details:", error);

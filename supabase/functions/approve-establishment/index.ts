@@ -81,12 +81,34 @@ serve(async (req) => {
       email_confirm: true,
     })
 
-    if (createUserError || !authUser.user) {
+    if (createUserError) {
       console.error('Error creating user in Auth:', createUserError);
-      throw new Error('Error creating user in Auth: ' + (createUserError?.message || ''))
+      
+      // Check if user already exists
+      if (createUserError.message.includes('already been registered')) {
+        // Try to get the existing user
+        const { data: existingUser, error: getUserError } = await supabase.auth.admin.listUsers({
+          filters: {
+            email: pendingUser.email
+          }
+        })
+        
+        if (getUserError || !existingUser || existingUser.users.length === 0) {
+          throw new Error('Error finding existing user: ' + (getUserError?.message || 'User not found'))
+        }
+        
+        console.log('User already exists, using existing user:', existingUser.users[0].id);
+        authUser = { user: existingUser.users[0] };
+      } else {
+        throw new Error('Error creating user in Auth: ' + createUserError.message)
+      }
     }
 
-    console.log('Created auth user:', authUser.user.id);
+    if (!authUser || !authUser.user) {
+      throw new Error('Failed to create or find auth user')
+    }
+
+    console.log('Created/found auth user:', authUser.user.id);
 
     // 5. Add the user to the approved_users table
     const { error: approvedUserError } = await supabase
@@ -100,11 +122,16 @@ serve(async (req) => {
       })
 
     if (approvedUserError) {
-      console.error('Error creating approved user:', approvedUserError);
-      throw new Error('Error creating approved user: ' + approvedUserError.message)
+      // Check if user already exists in approved_users
+      if (approvedUserError.message.includes('duplicate key')) {
+        console.log('User already exists in approved_users table, skipping insert');
+      } else {
+        console.error('Error creating approved user:', approvedUserError);
+        throw new Error('Error creating approved user: ' + approvedUserError.message)
+      }
+    } else {
+      console.log('Added user to approved_users table');
     }
-
-    console.log('Added user to approved_users table');
 
     // 6. Add the user role
     const { error: roleError } = await supabase
@@ -115,30 +142,45 @@ serve(async (req) => {
       })
 
     if (roleError) {
-      console.error('Error adding user role:', roleError);
-      throw new Error('Error adding user role: ' + roleError.message)
+      // Check if role already exists
+      if (roleError.message.includes('duplicate key')) {
+        console.log('User role already exists, skipping insert');
+      } else {
+        console.error('Error adding user role:', roleError);
+        throw new Error('Error adding user role: ' + roleError.message)
+      }
+    } else {
+      console.log('Added user role');
     }
-
-    console.log('Added user role');
 
     // 7. Add businesses to approved_businesses
     if (pendingBusinesses && pendingBusinesses.length > 0) {
-      const approvedBusinesses = pendingBusinesses.map(business => ({
-        user_id: authUser.user.id,
-        business_name: business.business_name,
-        dti_certificate_no: business.dti_certificate_no
-      }))
-
-      const { error: approvedBusinessesError } = await supabase
+      // Check if businesses already exist for this user
+      const { data: existingBusinesses, error: checkBusinessError } = await supabase
         .from('approved_businesses')
-        .insert(approvedBusinesses)
-
-      if (approvedBusinessesError) {
-        console.error('Error creating approved businesses:', approvedBusinessesError);
-        throw new Error('Error creating approved businesses: ' + approvedBusinessesError.message)
-      }
+        .select('id')
+        .eq('user_id', authUser.user.id)
       
-      console.log('Added businesses to approved_businesses table');
+      if (!checkBusinessError && (!existingBusinesses || existingBusinesses.length === 0)) {
+        const approvedBusinesses = pendingBusinesses.map(business => ({
+          user_id: authUser.user.id,
+          business_name: business.business_name,
+          dti_certificate_no: business.dti_certificate_no
+        }))
+
+        const { error: approvedBusinessesError } = await supabase
+          .from('approved_businesses')
+          .insert(approvedBusinesses)
+
+        if (approvedBusinessesError) {
+          console.error('Error creating approved businesses:', approvedBusinessesError);
+          throw new Error('Error creating approved businesses: ' + approvedBusinessesError.message)
+        }
+        
+        console.log('Added businesses to approved_businesses table');
+      } else {
+        console.log('Businesses already exist for this user, skipping insert');
+      }
     }
 
     // 8. Update pending_user status to approved
