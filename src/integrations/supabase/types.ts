@@ -111,6 +111,7 @@ export type Database = {
           id: string
           last_name: string
           middle_name: string | null
+          password: string | null
           status: Database["public"]["Enums"]["request_status"]
           updated_at: string | null
         }
@@ -121,6 +122,7 @@ export type Database = {
           id?: string
           last_name: string
           middle_name?: string | null
+          password?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string | null
         }
@@ -131,6 +133,7 @@ export type Database = {
           id?: string
           last_name?: string
           middle_name?: string | null
+          password?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string | null
         }
