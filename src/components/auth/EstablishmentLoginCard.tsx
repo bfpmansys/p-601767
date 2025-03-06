@@ -46,6 +46,8 @@ const EstablishmentLoginCard: React.FC = () => {
       
       if (error) throw error;
       
+      console.log("User authenticated:", authData.user.id);
+      
       // Check if user has the establishment role
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
@@ -54,20 +56,59 @@ const EstablishmentLoginCard: React.FC = () => {
         .eq('role', 'establishment')
         .maybeSingle();
       
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error("Role check error:", roleError);
+        throw roleError;
+      }
       
+      // If the user doesn't have a role yet, check if they have a pending registration
       if (!roleData) {
-        await supabase.auth.signOut();
-        throw new Error("You don't have establishment owner permissions");
+        console.log("No establishment role found, checking pending status");
+        
+        const { data: pendingData, error: pendingError } = await supabase
+          .from('pending_users')
+          .select('*')
+          .eq('email', data.email)
+          .eq('status', 'approved')
+          .maybeSingle();
+        
+        if (pendingError) {
+          console.error("Pending check error:", pendingError);
+          throw pendingError;
+        }
+        
+        if (pendingData) {
+          // User is approved but role hasn't been assigned yet
+          // Let's create the role for them
+          const { error: insertError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: authData.user.id,
+              role: 'establishment'
+            });
+          
+          if (insertError) {
+            console.error("Role insertion error:", insertError);
+            throw insertError;
+          }
+          
+          console.log("Establishment role created for user");
+        } else {
+          throw new Error("You don't have establishment owner permissions. Your registration might be pending approval.");
+        }
       }
       
       localStorage.setItem('establishmentAuthenticated', 'true');
+      localStorage.setItem('userId', authData.user.id);
       
       toast.success("Welcome, Establishment Owner!");
       navigate("/establishment/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error(error.message || "Invalid credentials");
+      
+      // Sign out if there was an error with role verification
+      await supabase.auth.signOut();
     } finally {
       setIsLoading(false);
     }
