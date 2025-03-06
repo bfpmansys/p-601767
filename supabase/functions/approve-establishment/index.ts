@@ -121,6 +121,10 @@ serve(async (req) => {
           throw new Error('Error creating approved user: ' + approvedUserError.message)
         }
       }
+      
+      console.log('Added user to approved_users table:', authUser.id)
+    } else {
+      console.log('User already exists in approved_users table:', authUser.id)
     }
 
     // 7. Check if user role already exists
@@ -151,6 +155,10 @@ serve(async (req) => {
           throw new Error('Error adding user role: ' + roleError.message)
         }
       }
+      
+      console.log('Added establishment role for user:', authUser.id)
+    } else {
+      console.log('User already has establishment role:', authUser.id)
     }
 
     // 9. Check for each business if it already exists
@@ -183,6 +191,10 @@ serve(async (req) => {
             throw new Error('Error creating approved business: ' + approvedBusinessError.message)
           }
         }
+        
+        console.log('Added business for user:', authUser.id, business.business_name)
+      } else {
+        console.log('Business already exists for user:', authUser.id, business.business_name)
       }
     }
 

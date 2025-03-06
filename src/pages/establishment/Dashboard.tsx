@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import Header from "@/components/common/Header";
 import ButtonCustom from "@/components/ui/button-custom";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +10,7 @@ const EstablishmentDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [businessDetails, setBusinessDetails] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [userName, setUserName] = useState<string>("");
   
   // Check if establishment owner is authenticated
   useEffect(() => {
@@ -27,6 +29,22 @@ const EstablishmentDashboard: React.FC = () => {
       }
 
       try {
+        // Fetch user details
+        const { data: userData, error: userError } = await supabase
+          .from('approved_users')
+          .select('first_name, last_name')
+          .eq('id', userId)
+          .single();
+        
+        if (userError) {
+          console.error("Error fetching user details:", userError);
+          throw userError;
+        }
+        
+        if (userData) {
+          setUserName(`${userData.first_name} ${userData.last_name}`);
+        }
+        
         // Fetch user's business details
         const { data, error } = await supabase
           .from('approved_businesses')
@@ -42,6 +60,7 @@ const EstablishmentDashboard: React.FC = () => {
         setBusinessDetails(data || []);
       } catch (error) {
         console.error("Failed to fetch business details:", error);
+        toast.error("Failed to load your business details");
       } finally {
         setIsLoading(false);
       }
@@ -74,7 +93,9 @@ const EstablishmentDashboard: React.FC = () => {
           </div>
           
           <div className="bg-neutral-100 p-8 rounded-[20px] border border-[#524F4F]">
-            <h2 className="text-2xl font-semibold mb-6">Welcome, Establishment Owner!</h2>
+            <h2 className="text-2xl font-semibold mb-6">
+              {userName ? `Welcome, ${userName}!` : 'Welcome, Establishment Owner!'}
+            </h2>
             
             {isLoading ? (
               <p className="text-lg">Loading your business details...</p>
