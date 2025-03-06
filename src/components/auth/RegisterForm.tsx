@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { z } from "zod";
@@ -13,6 +14,8 @@ const registerSchema = z.object({
   middle_name: z.string().optional(),
   last_name: z.string().min(1, "Last name is required"),
   email: z.string().email("Please enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirm_password: z.string().min(1, "Confirm password is required"),
   businesses: z.array(
     z.object({
       business_name: z.string().min(1, "Business name is required"),
@@ -22,6 +25,9 @@ const registerSchema = z.object({
   terms_agreement: z.boolean().refine(val => val === true, {
     message: "You must agree to the terms and conditions",
   }),
+}).refine((data) => data.password === data.confirm_password, {
+  message: "Passwords do not match",
+  path: ["confirm_password"],
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -43,6 +49,8 @@ const RegisterForm: React.FC = () => {
       middle_name: "",
       last_name: "",
       email: "",
+      password: "",
+      confirm_password: "",
       businesses: [{ business_name: "", dti_certificate_no: "" }],
       terms_agreement: false,
     },
@@ -80,6 +88,7 @@ const RegisterForm: React.FC = () => {
           middle_name: data.middle_name || null,
           last_name: data.last_name,
           email: data.email,
+          password: data.password, // Store the password temporarily
           status: "pending",
         })
         .select()
@@ -187,6 +196,42 @@ const RegisterForm: React.FC = () => {
             {errors.email && (
               <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
             )}
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-black font-semibold mb-1">
+                Password<span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                placeholder="Enter Password"
+                className={`w-full h-10 rounded-lg bg-[#E2E2E2] px-3 ${
+                  errors.password ? "border-2 border-red-500" : ""
+                }`}
+                {...register("password")}
+              />
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-black font-semibold mb-1">
+                Confirm Password<span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                placeholder="Confirm Password"
+                className={`w-full h-10 rounded-lg bg-[#E2E2E2] px-3 ${
+                  errors.confirm_password ? "border-2 border-red-500" : ""
+                }`}
+                {...register("confirm_password")}
+              />
+              {errors.confirm_password && (
+                <p className="text-red-500 text-sm mt-1">{errors.confirm_password.message}</p>
+              )}
+            </div>
           </div>
           
           <div className="mt-4">

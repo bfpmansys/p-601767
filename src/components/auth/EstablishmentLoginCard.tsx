@@ -61,25 +61,10 @@ const EstablishmentLoginCard: React.FC = () => {
         throw new Error("You don't have establishment owner permissions");
       }
       
-      // Check if password has been changed
-      const { data: userData, error: userError } = await supabase
-        .from('approved_users')
-        .select('password_changed')
-        .eq('id', authData.user.id)
-        .single();
-      
-      if (userError) throw userError;
-      
       localStorage.setItem('establishmentAuthenticated', 'true');
       
-      if (!userData.password_changed) {
-        // Redirect to change password page
-        toast.success("Please change your temporary password");
-        navigate("/change-password");
-      } else {
-        toast.success("Welcome, Establishment Owner!");
-        navigate("/establishment/dashboard");
-      }
+      toast.success("Welcome, Establishment Owner!");
+      navigate("/establishment/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error(error.message || "Invalid credentials");

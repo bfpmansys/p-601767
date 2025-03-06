@@ -53,66 +53,140 @@ serve(async (req) => {
 
     console.log('Approving user:', pendingUser.email)
 
-    // 3. Generate a random temporary password
-    const tempPassword = Math.random().toString(36).substring(2, 10) + 
-                        Math.random().toString(36).substring(2, 10)
+    // Check if user's password is available
+    if (!pendingUser.password) {
+      throw new Error('User password not found in pending registration')
+    }
 
-    // 4. Create a new user in Supabase Auth
-    const { data: authUser, error: createUserError } = await supabase.auth.admin.createUser({
-      email: pendingUser.email,
-      password: tempPassword,
-      email_confirm: true,
+    // 3. Check if user already exists in auth
+    const { data: existingUsers, error: existingUsersError } = await supabase.auth.admin.listUsers({
+      filter: {
+        email: pendingUser.email
+      }
     })
 
-    if (createUserError || !authUser.user) {
-      throw new Error('Error creating user in Auth: ' + (createUserError?.message || ''))
+    if (existingUsersError) {
+      throw new Error('Error checking existing users: ' + existingUsersError.message)
     }
 
-    console.log('Created auth user:', authUser.user.id)
+    let authUser;
 
-    // 5. Add the user to the approved_users table
-    const { error: approvedUserError } = await supabase
+    // If user exists, we'll use the existing user
+    if (existingUsers?.users && existingUsers.users.length > 0) {
+      console.log('User already exists in auth, using existing user')
+      authUser = existingUsers.users[0]
+    } else {
+      // 4. Create a new user in Supabase Auth with the provided password
+      const { data, error: createUserError } = await supabase.auth.admin.createUser({
+        email: pendingUser.email,
+        password: pendingUser.password,
+        email_confirm: true,
+      })
+
+      if (createUserError || !data.user) {
+        throw new Error('Error creating user in Auth: ' + (createUserError?.message || ''))
+      }
+
+      authUser = data.user
+      console.log('Created auth user:', authUser.id)
+    }
+
+    // 5. Check if user already exists in approved_users
+    const { data: existingApprovedUser, error: existingApprovedUserError } = await supabase
       .from('approved_users')
-      .insert({
-        id: authUser.user.id,
-        first_name: pendingUser.first_name,
-        middle_name: pendingUser.middle_name,
-        last_name: pendingUser.last_name,
-        password_changed: false
-      })
+      .select('id')
+      .eq('id', authUser.id)
+      .maybeSingle()
 
-    if (approvedUserError) {
-      throw new Error('Error creating approved user: ' + approvedUserError.message)
+    if (existingApprovedUserError && existingApprovedUserError.code !== 'PGRST116') {
+      throw new Error('Error checking existing approved user: ' + existingApprovedUserError.message)
     }
 
-    // 6. Add the user role
-    const { error: roleError } = await supabase
+    // Only insert if not already exists
+    if (!existingApprovedUser) {
+      // 6. Add the user to the approved_users table
+      const { error: approvedUserError } = await supabase
+        .from('approved_users')
+        .insert({
+          id: authUser.id,
+          first_name: pendingUser.first_name,
+          middle_name: pendingUser.middle_name,
+          last_name: pendingUser.last_name,
+          password_changed: true // Set to true since we're using their provided password
+        })
+
+      if (approvedUserError) {
+        // If error is about duplicate key, we can ignore it
+        if (!approvedUserError.message.includes('duplicate key')) {
+          throw new Error('Error creating approved user: ' + approvedUserError.message)
+        }
+      }
+    }
+
+    // 7. Check if user role already exists
+    const { data: existingRole, error: existingRoleError } = await supabase
       .from('user_roles')
-      .insert({
-        user_id: authUser.user.id,
-        role: 'establishment'
-      })
+      .select('id')
+      .eq('user_id', authUser.id)
+      .eq('role', 'establishment')
+      .maybeSingle()
 
-    if (roleError) {
-      throw new Error('Error adding user role: ' + roleError.message)
+    if (existingRoleError && existingRoleError.code !== 'PGRST116') {
+      throw new Error('Error checking existing role: ' + existingRoleError.message)
     }
 
-    // 7. Add businesses to approved_businesses
-    const approvedBusinesses = pendingBusinesses.map(business => ({
-      user_id: authUser.user.id,
-      business_name: business.business_name,
-      dti_certificate_no: business.dti_certificate_no
-    }))
+    // Only insert role if not already exists
+    if (!existingRole) {
+      // 8. Add the user role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: authUser.id,
+          role: 'establishment'
+        })
 
-    const { error: approvedBusinessesError } = await supabase
-      .from('approved_businesses')
-      .insert(approvedBusinesses)
-
-    if (approvedBusinessesError) {
-      throw new Error('Error creating approved businesses: ' + approvedBusinessesError.message)
+      if (roleError) {
+        // If error is about duplicate key, we can ignore it
+        if (!roleError.message.includes('duplicate key')) {
+          throw new Error('Error adding user role: ' + roleError.message)
+        }
+      }
     }
 
-    // 8. Update pending_user status to approved
+    // 9. Check for each business if it already exists
+    for (const business of pendingBusinesses) {
+      const { data: existingBusiness, error: existingBusinessError } = await supabase
+        .from('approved_businesses')
+        .select('id')
+        .eq('user_id', authUser.id)
+        .eq('business_name', business.business_name)
+        .eq('dti_certificate_no', business.dti_certificate_no)
+        .maybeSingle()
+
+      if (existingBusinessError && existingBusinessError.code !== 'PGRST116') {
+        throw new Error('Error checking existing business: ' + existingBusinessError.message)
+      }
+
+      // Only insert if business doesn't already exist
+      if (!existingBusiness) {
+        const { error: approvedBusinessError } = await supabase
+          .from('approved_businesses')
+          .insert({
+            user_id: authUser.id,
+            business_name: business.business_name,
+            dti_certificate_no: business.dti_certificate_no
+          })
+
+        if (approvedBusinessError) {
+          // If error is about duplicate key, we can ignore it
+          if (!approvedBusinessError.message.includes('duplicate key')) {
+            throw new Error('Error creating approved business: ' + approvedBusinessError.message)
+          }
+        }
+      }
+    }
+
+    // 10. Update pending_user status to approved
     const { error: updateError } = await supabase
       .from('pending_users')
       .update({ status: 'approved' })
@@ -124,16 +198,13 @@ serve(async (req) => {
 
     console.log('User approval process completed successfully')
 
-    // Note: In a production environment, you would typically send an email with the temporary password here
-    // For now, we'll return the temporary password as part of the response (for testing)
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'User approved successfully',
         user: {
-          id: authUser.user.id,
-          email: pendingUser.email,
-          temporaryPassword: tempPassword // In production, don't return this - only send via email
+          id: authUser.id,
+          email: pendingUser.email
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
