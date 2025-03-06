@@ -48,23 +48,25 @@ const EstablishmentLoginCard: React.FC = () => {
       
       console.log("User authenticated:", authData.user.id);
       
-      // Check if user has the establishment role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', authData.user.id)
-        .eq('role', 'establishment')
-        .maybeSingle();
+      // Check if user has the establishment role, using a function we can invoke
+      const { data: functionData, error: functionError } = await supabase.rpc(
+        'has_role',
+        { 
+          _user_id: authData.user.id,
+          _role: 'establishment'
+        }
+      );
       
-      if (roleError) {
-        console.error("Role check error:", roleError);
-        throw roleError;
+      if (functionError) {
+        console.error("Role check error:", functionError);
+        throw functionError;
       }
       
-      // If the user doesn't have a role yet, check if they have a pending registration
-      if (!roleData) {
+      // If user does not have the role
+      if (!functionData) {
         console.log("No establishment role found, checking pending status");
         
+        // Check if the user has an approved pending registration
         const { data: pendingData, error: pendingError } = await supabase
           .from('pending_users')
           .select('*')
@@ -79,20 +81,27 @@ const EstablishmentLoginCard: React.FC = () => {
         
         if (pendingData) {
           // User is approved but role hasn't been assigned yet
-          // Let's create the role for them
-          const { error: insertError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: authData.user.id,
-              role: 'establishment'
+          // We need to call the edge function to assign the role
+          try {
+            const response = await fetch(`${window.location.origin}/api/assign-establishment-role`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+              },
+              body: JSON.stringify({ userId: authData.user.id })
             });
-          
-          if (insertError) {
-            console.error("Role insertion error:", insertError);
-            throw insertError;
+            
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || "Failed to assign role");
+            }
+            
+            console.log("Establishment role assigned to user");
+          } catch (e) {
+            console.error("Failed to assign role:", e);
+            throw new Error("Error assigning establishment role. Please contact support.");
           }
-          
-          console.log("Establishment role created for user");
         } else {
           throw new Error("You don't have establishment owner permissions. Your registration might be pending approval.");
         }
