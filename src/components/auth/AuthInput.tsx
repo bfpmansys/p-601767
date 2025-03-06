@@ -49,7 +49,7 @@ const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(
         <div className="text-black text-xl font-semibold self-start ml-14 mb-1.5 max-sm:text-lg max-sm:ml-5">
           {label}
         </div>
-        <div className="w-[498px] h-16 flex items-center relative bg-[#E2E2E2] mb-7 px-4 py-0 rounded-[20px] max-md:w-[90%] max-md:max-w-[498px] max-sm:h-14">
+        <div className="w-[498px] h-16 flex items-center relative bg-[#E2E2E2] mx-14 mb-7 px-4 py-0 rounded-[20px] max-md:w-[90%] max-md:max-w-[498px] max-sm:h-14">
           <img src={icon} className="w-8 h-8" alt={iconAlt} />
           <input
             ref={ref}

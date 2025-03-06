@@ -14,8 +14,8 @@ import EstablishmentRegister from "./pages/EstablishmentRegister";
 import ChangePassword from "./pages/ChangePassword";
 import ForgotPassword from "./pages/ForgotPassword";
 import Header from "@/components/homepage/Header";
-import { Sidebar } from "@/components/AdminDashboard/AdminSidebar";
 import Profile from "./components/common/Profile";
+import EstablishmentRegistration from "./pages/establishment/EstablishmentRegistration";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +51,7 @@ const App = () => (
           <Route path="/forgot-password" element={<ForgotPassword />} />
           
           <Route path="/edit-profile" element={<Profile />} />
+          <Route path="/establishment-registration" element={<EstablishmentRegistration />} />
 
           
           

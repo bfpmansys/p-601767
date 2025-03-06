@@ -36,7 +36,7 @@ interface ProfileData {
   avatar_url: string | null;
 }
 
-const Profile: FC = () => {
+const EditProfile: FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -464,4 +464,4 @@ const Profile: FC = () => {
   );
 };
 
-export default Profile;
+export default EditProfile;

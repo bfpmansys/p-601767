@@ -4,13 +4,32 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ButtonCustom from "@/components/ui/button-custom";
 import { supabase } from "@/integrations/supabase/client";
-import Header from "@/components/AdminDashboard/AdminDashboardNavbar";
+
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Bell } from "lucide-react";
+import { EstablishmentCard } from "@/components/EODashboard/EstablishmentCard";
+import { AddEstablishmentButton } from "@/components/EODashboard/AddEstablishmentButton";
+import { UserProfile } from "@/components/EODashboard/UserProfile";
+import { Sidebar } from "@/components/EODashboard/Sidebar";
+import Header from "@/components/EODashboard/Header";
+
 
 const EstablishmentDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [businessDetails, setBusinessDetails] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState<string>("");
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
   
   // Check if establishment owner is authenticated
   useEffect(() => {
@@ -83,45 +102,77 @@ const EstablishmentDashboard: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-white font-['Poppins']">
       <Header />
-      <main className="flex-1 p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-[#F00]">Establishment Dashboard</h1>
-            <ButtonCustom onClick={handleLogout}>
-              LOG OUT
-            </ButtonCustom>
+      
+      <div className="flex">
+        {(!isMobile || isMenuOpen) && (
+          <Sidebar isMenuOpen={isMenuOpen} onClose={closeMenu} />
+        )}
+        <main className="flex-1 max-w-screen-xl mx-auto p-4">
+          <div className="bg-[#FE623F] rounded-t-lg py-3 px-6 flex justify-between items-center">
+            <h1 className="text-white font-bold text-lg">DASHBOARD</h1>
+            <button className="text-white">
+              <Bell size={20} />
+            </button>
           </div>
-          
-          <div className="bg-neutral-100 p-8 rounded-[20px] border border-[#524F4F]">
-            <h2 className="text-2xl font-semibold mb-6">
-              {userName ? `Welcome, ${userName}!` : 'Welcome, Establishment Owner!'}
-            </h2>
-            
-            {isLoading ? (
-              <p className="text-lg">Loading your business details...</p>
-            ) : businessDetails.length > 0 ? (
-              <>
-                <h3 className="text-xl font-medium mb-4">Your Registered Businesses:</h3>
-                <div className="space-y-4">
-                  {businessDetails.map((business, index) => (
-                    <div key={index} className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                      <h4 className="text-lg font-semibold text-[#FE623F]">{business.business_name}</h4>
-                      <p className="mt-2"><span className="font-medium">DTI Certificate:</span> {business.dti_certificate_no}</p>
+
+          <div className="bg-[#FFEADB] rounded-b-lg p-6">
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <div>
+                <h2 className="font-bold text-lg mb-2">GOOD DAY!</h2>
+                <p className="text-sm text-gray-700">
+                  We're thrilled to present our improved Establishment 
+                  Portal designed with ease. Experience a seamless journey 
+                  as you access your establishment information, inspection 
+                  schedules and compliance updates all at your fingertips
+                </p>
+              </div>
+              <UserProfile
+                name={userName ? `${userName}!` : 'Welcome, Establishment Owner!'}
+                userId="25-XXXX"
+                establishmentCount={3}
+                lastLogin="February 31, 2025"
+              />
+            </div>
+
+            <div className="border-t border-gray-300 pt-6 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold text-lg">ESTABLISHMENT INFORMATION</h2>
+                <AddEstablishmentButton />
+              </div>
+
+              <div className="space-y-4">
+                {isLoading ? (
+                  <p className="text-lg">Loading your business details...</p>
+                ) : businessDetails.length > 0 ? (
+                  <>
+                    <div className="space-y-4">
+                      {businessDetails.map((business, index) => (
+                        <EstablishmentCard
+                          key={index}
+                          name={business.business_name}
+                          dtiNumber={business.dti_certificate_no}
+                          applicationType={business.application_type}
+                          isRegistered={business.is_registered}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="text-lg">No business records found. Please contact administration if this is an error.</p>
-            )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-              <DashboardCard title="Upcoming Inspections" count="0" />
-              <DashboardCard title="Past Inspections" count="0" />
+                  </>
+                ) : (
+                  <p className="text-lg">
+                    No business records found. Please contact administration if this is an error.
+                  </p>
+                )}
+              </div>
+
+              <div className="text-right mt-4">
+                <button className="text-sm font-medium text-gray-600 hover:text-gray-900">
+                  view all &gt;
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

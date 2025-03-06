@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ButtonCustom from "@/components/ui/button-custom";
 import { CheckCircle, XCircle, Eye } from "lucide-react";
-import Header from "@/components/AdminDashboard/AdminDashboardNavbar";
+import Header from "@/components/EODashboard/Header";
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
