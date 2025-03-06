@@ -124,19 +124,15 @@ const EstablishmentLoginCard: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-center pt-[159px]">
+    <div className="flex justify-center pt-[70px]">
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="w-[605px] h-[564px] border flex flex-col items-center relative bg-neutral-100 rounded-[20px] border-solid border-[#524F4F] max-md:w-[90%] max-md:max-w-[605px] max-sm:h-auto max-sm:px-0 max-sm:py-5"
       >
-        <img
-          src="https://cdn.builder.io/api/v1/image/assets/TEMP/3498d51df3ff7e2a1f563eb8e42a91003b0e7ced"
-          className="w-[88px] h-[131px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] mt-3.5 rounded-[20px] max-sm:w-[70px] max-sm:h-[104px]"
-          alt="Establishment Logo"
-        />
-        <h1 className="text-[#F00] text-[40px] font-bold mt-[35px] max-sm:text-[32px]">
-          ESTABLISHMENT LOG IN
-        </h1>
+        <div className="flex flex-col items-center mb-8 mt-10">
+          <img src="/images/logo.png" alt="V-Fire Logo" className="w-16 h-20 mb-4" />
+          <h1 className="text-4xl font-bold text-[#FF0000]">ESTABLISHMENT LOG IN</h1>
+        </div>
 
         <AuthInput
           label="E-mail:"
@@ -185,7 +181,7 @@ const EstablishmentLoginCard: React.FC = () => {
           {isLoading ? "LOGGING IN..." : "LOG IN"}
         </ButtonCustom>
         
-        <div className="mt-6 text-center">
+        <div className="mt-12 text-center">
           <p className="text-black text-base">
             Don't have an account?{" "}
             <span 

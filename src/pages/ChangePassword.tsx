@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import Header from "@/components/common/Header";
+import Header from "@/components/homepage/Header";
 import ButtonCustom from "@/components/ui/button-custom";
 
 const passwordSchema = z.object({

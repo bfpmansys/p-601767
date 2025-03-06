@@ -2,9 +2,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import Header from "@/components/common/Header";
 import ButtonCustom from "@/components/ui/button-custom";
 import { supabase } from "@/integrations/supabase/client";
+import Header from "@/components/AdminDashboard/AdminDashboardNavbar";
 
 const EstablishmentDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -116,8 +116,8 @@ const EstablishmentDashboard: React.FC = () => {
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-              <DashboardCard title="Upcoming Inspections" count="2" />
-              <DashboardCard title="Past Inspections" count="5" />
+              <DashboardCard title="Upcoming Inspections" count="0" />
+              <DashboardCard title="Past Inspections" count="0" />
             </div>
           </div>
         </div>

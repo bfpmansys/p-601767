@@ -1,6 +1,6 @@
 
 import React from "react";
-import Header from "@/components/common/Header";
+import Header from "@/components/homepage/Header";
 import RegisterForm from "@/components/auth/RegisterForm";
 
 const EstablishmentRegister: React.FC = () => {

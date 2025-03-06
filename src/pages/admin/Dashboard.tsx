@@ -3,11 +3,11 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import Header from "@/components/common/Header";
 import ButtonCustom from "@/components/ui/button-custom";
 import { CheckCircle, XCircle, Eye } from "lucide-react";
+import Header from "@/components/AdminDashboard/AdminDashboardNavbar";
 
-const AdminDashboard: React.FC = () => {
+const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,7 +111,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white font-['Poppins']">
+    <div className="font-poppins min-h-screen flex flex-col bg-white">
       <Header />
       <main className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
@@ -284,4 +284,4 @@ const DashboardCard: React.FC<{ title: string; count: string }> = ({ title, coun
   );
 };
 
-export default AdminDashboard;
+export default Dashboard;

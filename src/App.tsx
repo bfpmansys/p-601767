@@ -6,14 +6,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import LoginChoice from "./pages/LoginChoice";
+import LoginChoice from "./pages/Homepage";
 import AdminDashboard from "./pages/admin/Dashboard";
 import EstablishmentDashboard from "./pages/establishment/Dashboard";
 import EstablishmentLoginCard from "./components/auth/EstablishmentLoginCard";
 import EstablishmentRegister from "./pages/EstablishmentRegister";
 import ChangePassword from "./pages/ChangePassword";
 import ForgotPassword from "./pages/ForgotPassword";
-import Header from "@/components/common/Header";
+import Header from "@/components/homepage/Header";
+import { Sidebar } from "@/components/AdminDashboard/AdminSidebar";
+import Profile from "./components/common/Profile";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +49,10 @@ const App = () => (
           <Route path="/establishment-register" element={<EstablishmentRegister />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          
+          <Route path="/edit-profile" element={<Profile />} />
+
+          
           
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
