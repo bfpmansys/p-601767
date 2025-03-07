@@ -29,6 +29,7 @@ serve(async (req) => {
   try {
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    console.log('Starting approval process for userId:', userId)
 
     // 1. Get the pending user data
     const { data: pendingUser, error: pendingUserError } = await supabase
@@ -112,7 +113,8 @@ serve(async (req) => {
           first_name: pendingUser.first_name,
           middle_name: pendingUser.middle_name,
           last_name: pendingUser.last_name,
-          password_changed: true // Set to true since we're using their provided password
+          password_changed: true, // Set to true since we're using their provided password
+          status: 'active'
         })
 
       if (approvedUserError) {
@@ -124,7 +126,17 @@ serve(async (req) => {
       
       console.log('Added user to approved_users table:', authUser.id)
     } else {
-      console.log('User already exists in approved_users table:', authUser.id)
+      // Update status to active if user exists
+      const { error: updateApprovedUserError } = await supabase
+        .from('approved_users')
+        .update({ status: 'active' })
+        .eq('id', authUser.id)
+        
+      if (updateApprovedUserError) {
+        throw new Error('Error updating approved user status: ' + updateApprovedUserError.message)
+      }
+      
+      console.log('Updated user status to active in approved_users table:', authUser.id)
     }
 
     // 7. Check if user role already exists
@@ -182,7 +194,8 @@ serve(async (req) => {
           .insert({
             user_id: authUser.id,
             business_name: business.business_name,
-            dti_certificate_no: business.dti_certificate_no
+            dti_certificate_no: business.dti_certificate_no,
+            registration_status: 'unregistered'
           })
 
         if (approvedBusinessError) {

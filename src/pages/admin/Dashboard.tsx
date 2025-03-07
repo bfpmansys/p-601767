@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ButtonCustom from "@/components/ui/button-custom";
-import { CheckCircle, XCircle, Eye } from "lucide-react";
+import { CheckCircle, XCircle, Eye, Users } from "lucide-react";
 import Header from "@/components/EODashboard/Header";
 
 const Dashboard: React.FC = () => {
@@ -13,6 +13,7 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [selectedBusinesses, setSelectedBusinesses] = useState<any[]>([]);
+  const [approvedUsersCount, setApprovedUsersCount] = useState(0);
   
   // Check if admin is authenticated
   useEffect(() => {
@@ -21,6 +22,7 @@ const Dashboard: React.FC = () => {
       navigate('/');
     } else {
       fetchPendingRequests();
+      fetchApprovedUsersCount();
     }
   }, [navigate]);
 
@@ -41,6 +43,20 @@ const Dashboard: React.FC = () => {
       toast.error("Failed to load pending requests");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchApprovedUsersCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('approved_users')
+        .select('*', { count: 'exact', head: true });
+        
+      if (error) throw error;
+      
+      setApprovedUsersCount(count || 0);
+    } catch (error: any) {
+      console.error("Error fetching approved users count:", error);
     }
   };
 
@@ -75,6 +91,7 @@ const Dashboard: React.FC = () => {
       
       // Refresh the list
       fetchPendingRequests();
+      fetchApprovedUsersCount();
       setSelectedRequest(null);
       
     } catch (error: any) {
@@ -110,6 +127,10 @@ const Dashboard: React.FC = () => {
     navigate('/');
   };
 
+  const navigateToUserAccounts = () => {
+    navigate('/admin/user-accounts');
+  };
+
   return (
     <div className="font-poppins min-h-screen flex flex-col bg-white">
       <Header />
@@ -117,9 +138,15 @@ const Dashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold text-[#F00]">Admin Dashboard</h1>
-            <ButtonCustom onClick={handleLogout}>
-              LOG OUT
-            </ButtonCustom>
+            <div className="flex gap-4">
+              <ButtonCustom onClick={navigateToUserAccounts} className="flex items-center gap-2">
+                <Users size={16} />
+                USER ACCOUNTS
+              </ButtonCustom>
+              <ButtonCustom onClick={handleLogout}>
+                LOG OUT
+              </ButtonCustom>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -132,7 +159,10 @@ const Dashboard: React.FC = () => {
                   title="Pending Registrations" 
                   count={pendingRequests.length.toString()} 
                 />
-                <DashboardCard title="Approved Establishments" count="0" />
+                <DashboardCard 
+                  title="Approved Establishments" 
+                  count={approvedUsersCount.toString()} 
+                />
                 <DashboardCard title="Total Inspections" count="0" />
               </div>
             </div>

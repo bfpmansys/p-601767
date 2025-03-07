@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginChoice from "./pages/Homepage";
 import AdminDashboard from "./pages/admin/Dashboard";
+import UserAccounts from "./pages/admin/UserAccounts";
 import EstablishmentDashboard from "./pages/establishment/Dashboard";
 import EstablishmentLoginCard from "./components/auth/EstablishmentLoginCard";
 import EstablishmentRegister from "./pages/EstablishmentRegister";
@@ -32,6 +33,7 @@ const App = () => (
           {/* Admin routes */}
           <Route path="/admin-login" element={<Index />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/user-accounts" element={<UserAccounts />} />
           
           {/* Establishment routes */}
           <Route 
@@ -52,8 +54,6 @@ const App = () => (
           
           <Route path="/edit-profile" element={<Profile />} />
           <Route path="/establishment-registration" element={<EstablishmentRegistration />} />
-
-          
           
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
