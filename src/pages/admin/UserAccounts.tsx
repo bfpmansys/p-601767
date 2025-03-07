@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -33,7 +32,6 @@ const UserAccounts: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTab, setSelectedTab] = useState<UserType>("all");
   
-  // Check if admin is authenticated
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('adminAuthenticated') === 'true';
     if (!isAuthenticated) {
@@ -46,7 +44,6 @@ const UserAccounts: React.FC = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // Fetch all pending users
       const { data: pendingUsers, error: pendingError } = await supabase
         .from('pending_users')
         .select('*')
@@ -54,7 +51,6 @@ const UserAccounts: React.FC = () => {
         
       if (pendingError) throw pendingError;
       
-      // Fetch pending businesses for each pending user
       const pendingUsersWithBusinesses = await Promise.all(
         (pendingUsers || []).map(async (user) => {
           const { data: businesses } = await supabase
@@ -69,7 +65,7 @@ const UserAccounts: React.FC = () => {
             last_name: user.last_name,
             email: user.email,
             status: user.status as UserStatus,
-            role: 'establishment', // Pending users are always establishment owners for now
+            role: 'establishment',
             business_name: businesses && businesses.length > 0 ? businesses[0].business_name : '',
             dti_certificate_no: businesses && businesses.length > 0 ? businesses[0].dti_certificate_no : '',
             registration_status: 'pending'
@@ -77,7 +73,6 @@ const UserAccounts: React.FC = () => {
         })
       );
 
-      // Fetch all approved users with their roles
       const { data: approvedUsers, error: approvedError } = await supabase
         .from('approved_users')
         .select('*')
@@ -85,7 +80,6 @@ const UserAccounts: React.FC = () => {
         
       if (approvedError) throw approvedError;
 
-      // Get roles for each approved user
       const approvedUsersWithRoles = await Promise.all(
         (approvedUsers || []).map(async (user) => {
           const { data: roles } = await supabase
@@ -95,7 +89,6 @@ const UserAccounts: React.FC = () => {
             
           const role = roles && roles.length > 0 ? roles[0].role : 'unknown';
           
-          // Get businesses for establishment owners
           let business_name = '';
           let dti_certificate_no = '';
           let registration_status = 'unregistered';
@@ -118,7 +111,7 @@ const UserAccounts: React.FC = () => {
             first_name: user.first_name,
             middle_name: user.middle_name,
             last_name: user.last_name,
-            email: '', // We need to get this from auth.users which we can't access directly
+            email: '',
             status: user.status as UserStatus || 'active',
             role,
             business_name,
@@ -128,15 +121,11 @@ const UserAccounts: React.FC = () => {
         })
       );
       
-      // Combine both lists
       const allUsers = [...pendingUsersWithBusinesses, ...approvedUsersWithRoles];
       
-      // Get emails for approved users from auth (using the edge function)
       for (const user of allUsers) {
         if (user.status !== 'pending' && !user.email) {
           try {
-            // This would be a call to an edge function to get user email
-            // For now, we'll mock this by leaving email empty
             user.email = "";
           } catch (error) {
             console.error("Error fetching user email:", error);
@@ -154,16 +143,13 @@ const UserAccounts: React.FC = () => {
     }
   };
 
-  // Filter users based on tab and search query
   useEffect(() => {
     let filtered = users;
     
-    // Filter by role (tab)
     if (selectedTab !== "all") {
       filtered = filtered.filter(user => user.role === selectedTab);
     }
     
-    // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(user => 
@@ -180,7 +166,6 @@ const UserAccounts: React.FC = () => {
 
   const handleApprove = async (request: User) => {
     try {
-      // Call the edge function to handle the approval process
       const { data, error } = await supabase.functions.invoke('approve-establishment', {
         body: { userId: request.id }
       });
@@ -189,7 +174,6 @@ const UserAccounts: React.FC = () => {
       
       toast.success(`Registration for ${request.first_name} ${request.last_name} has been approved`);
       
-      // Refresh the list
       fetchUsers();
     } catch (error: any) {
       console.error("Error approving request:", error);
@@ -208,7 +192,6 @@ const UserAccounts: React.FC = () => {
       
       toast.success(`Registration for ${request.first_name} ${request.last_name} has been rejected`);
       
-      // Refresh the list
       fetchUsers();
     } catch (error: any) {
       console.error("Error rejecting request:", error);
@@ -238,87 +221,7 @@ const UserAccounts: React.FC = () => {
     return `${last}, ${first} ${middle ? middle.charAt(0) + '.' : ''}`;
   };
 
-  return (
-    <div className="font-poppins min-h-screen flex flex-col bg-white">
-      <Header />
-      <main className="flex-1 p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-[#F00]">Admin Dashboard</h1>
-            <ButtonCustom onClick={handleLogout}>
-              LOG OUT
-            </ButtonCustom>
-          </div>
-          
-          <div className="bg-[#FE623F] rounded-t-[20px] p-4">
-            <h2 className="text-xl font-semibold text-white text-center">USER ACCOUNTS</h2>
-          </div>
-          
-          <div className="bg-[#FFECE7] p-6 rounded-b-[20px] border border-[#524F4F] shadow-md">
-            <Tabs defaultValue="all" onValueChange={(value) => setSelectedTab(value as UserType)}>
-              <div className="flex items-center justify-between mb-6">
-                <TabsList className="bg-[#FFECE7]">
-                  <TabsTrigger 
-                    value="all"
-                    className="data-[state=active]:bg-[#FE623F] data-[state=active]:text-white px-6"
-                  >
-                    ALL
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="establishment"
-                    className="data-[state=active]:bg-[#FE623F] data-[state=active]:text-white px-6"
-                  >
-                    EST. OWNERS
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="inspector"
-                    className="data-[state=active]:bg-[#FE623F] data-[state=active]:text-white px-6"
-                  >
-                    FIRE INSPECTOR
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="admin"
-                    className="data-[state=active]:bg-[#FE623F] data-[state=active]:text-white px-6"
-                  >
-                    ADMIN
-                  </TabsTrigger>
-                </TabsList>
-                
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search"
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FE623F] focus:border-transparent"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                </div>
-              </div>
-              
-              <TabsContent value="all" className="mt-0">
-                {renderUsersTable(filteredUsers)}
-              </TabsContent>
-              
-              <TabsContent value="establishment" className="mt-0">
-                {renderUsersTable(filteredUsers)}
-              </TabsContent>
-              
-              <TabsContent value="inspector" className="mt-0">
-                {renderUsersTable(filteredUsers)}
-              </TabsContent>
-              
-              <TabsContent value="admin" className="mt-0">
-                {renderUsersTable(filteredUsers)}
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-
-  function renderUsersTable(users: User[]) {
+  const renderUsersTable = (users: User[]) => {
     if (isLoading) {
       return <div className="text-center py-8">Loading...</div>;
     }
@@ -328,46 +231,50 @@ const UserAccounts: React.FC = () => {
     }
     
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+      <div className="overflow-x-auto mt-4">
+        <table className="w-full border-collapse bg-white">
           <thead>
-            <tr className="bg-[#FFF5F2] text-left">
-              <th className="p-3 border-b font-semibold">
-                <div className="flex items-center">
-                  <input type="checkbox" className="mr-2" />
-                  ID NO
-                </div>
-              </th>
-              <th className="p-3 border-b font-semibold">FULL NAME (LN, FN, MN)</th>
-              <th className="p-3 border-b font-semibold">EMAIL ADDRESS</th>
-              <th className="p-3 border-b font-semibold">BUSINESS NAME - DTI CERT NO.</th>
-              <th className="p-3 border-b font-semibold">STATUS</th>
-              <th className="p-3 border-b font-semibold">ACTIONS</th>
+            <tr>
+              <th className="px-4 py-3 bg-[#FE623F] text-white text-left">ID NO.</th>
+              <th className="px-4 py-3 bg-[#FE623F] text-white text-left">FULL NAME</th>
+              <th className="px-4 py-3 bg-[#FE623F] text-white text-left">EMAIL ADDRESS</th>
+              <th className="px-4 py-3 bg-[#FE623F] text-white text-left">BUSINESS INFO</th>
+              <th className="px-4 py-3 bg-[#FE623F] text-white text-left">STATUS</th>
+              <th className="px-4 py-3 bg-[#FE623F] text-white text-left">ACTIONS</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user, index) => (
-              <tr key={user.id} className={index % 2 === 0 ? 'bg-[#FFF5F2]' : 'bg-white'}>
-                <td className="p-3 border-b">
-                  <div className="flex items-center">
-                    <input type="checkbox" className="mr-2" />
-                    {user.id.substring(0, 8)}
-                  </div>
-                </td>
-                <td className="p-3 border-b">
+              <tr 
+                key={user.id} 
+                className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+              >
+                <td className="px-4 py-3 border-b">{user.id.substring(0, 8)}</td>
+                <td className="px-4 py-3 border-b">
                   {formatName(user.first_name, user.middle_name, user.last_name)}
                 </td>
-                <td className="p-3 border-b">{user.email}</td>
-                <td className="p-3 border-b">
-                  {user.business_name ? `${user.business_name} - ${user.dti_certificate_no}` : 'N/A'}
+                <td className="px-4 py-3 border-b">{user.email}</td>
+                <td className="px-4 py-3 border-b">
+                  {user.business_name ? (
+                    <div>
+                      <div>Name: {user.business_name}</div>
+                      <div>DTI Cert: {user.dti_certificate_no}</div>
+                      <div>Status: {user.registration_status}</div>
+                    </div>
+                  ) : 'N/A'}
                 </td>
-                <td className="p-3 border-b">
-                  {getStatusBadge(user.status)}
+                <td className="px-4 py-3 border-b">
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                    ${user.status === 'active' ? 'bg-green-100 text-green-800' :
+                      user.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'}`}>
+                    {user.status.toUpperCase()}
+                  </span>
                 </td>
-                <td className="p-3 border-b">
+                <td className="px-4 py-3 border-b">
                   <div className="flex space-x-2">
                     <button
-                      className="bg-[#FE623F] text-white rounded-full p-1 hover:bg-opacity-80"
+                      className="p-1 text-gray-500 hover:text-gray-700"
                       title="View Details"
                     >
                       <Eye size={16} />
@@ -376,14 +283,14 @@ const UserAccounts: React.FC = () => {
                       <>
                         <button
                           onClick={() => handleApprove(user)}
-                          className="bg-green-500 text-white rounded-full p-1 hover:bg-opacity-80"
+                          className="p-1 text-green-500 hover:text-green-700"
                           title="Approve"
                         >
                           <CheckCircle size={16} />
                         </button>
                         <button
                           onClick={() => handleReject(user)}
-                          className="bg-red-500 text-white rounded-full p-1 hover:bg-opacity-80"
+                          className="p-1 text-red-500 hover:text-red-700"
                           title="Reject"
                         >
                           <XCircle size={16} />
@@ -398,7 +305,71 @@ const UserAccounts: React.FC = () => {
         </table>
       </div>
     );
-  }
+  };
+
+  return (
+    <div className="font-poppins min-h-screen flex flex-col bg-white">
+      <Header />
+      <main className="flex-1 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-[#F00]">User Management</h1>
+            <ButtonCustom onClick={handleLogout}>LOG OUT</ButtonCustom>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-4 border-b">
+              <div className="flex items-center justify-between">
+                <Tabs defaultValue="all" onValueChange={(value) => setSelectedTab(value as UserType)}>
+                  <TabsList className="bg-gray-100 p-1">
+                    <TabsTrigger value="all" className="px-4 py-2">
+                      ALL USERS
+                    </TabsTrigger>
+                    <TabsTrigger value="establishment" className="px-4 py-2">
+                      ESTABLISHMENT OWNERS
+                    </TabsTrigger>
+                    <TabsTrigger value="inspector" className="px-4 py-2">
+                      FIRE INSPECTORS
+                    </TabsTrigger>
+                    <TabsTrigger value="admin" className="px-4 py-2">
+                      ADMINS
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    className="pl-10 pr-4 py-2 border rounded-lg"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                </div>
+              </div>
+            </div>
+
+            <TabsContent value="all" className="p-4">
+              {renderUsersTable(filteredUsers)}
+            </TabsContent>
+            
+            <TabsContent value="establishment" className="p-4">
+              {renderUsersTable(filteredUsers)}
+            </TabsContent>
+            
+            <TabsContent value="inspector" className="p-4">
+              {renderUsersTable(filteredUsers)}
+            </TabsContent>
+            
+            <TabsContent value="admin" className="p-4">
+              {renderUsersTable(filteredUsers)}
+            </TabsContent>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
 };
 
 export default UserAccounts;
