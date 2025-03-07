@@ -68,7 +68,7 @@ const UserAccounts: React.FC = () => {
             middle_name: user.middle_name,
             last_name: user.last_name,
             email: user.email,
-            status: user.status,
+            status: user.status as UserStatus,
             role: 'establishment', // Pending users are always establishment owners for now
             business_name: businesses && businesses.length > 0 ? businesses[0].business_name : '',
             dti_certificate_no: businesses && businesses.length > 0 ? businesses[0].dti_certificate_no : '',
@@ -98,7 +98,7 @@ const UserAccounts: React.FC = () => {
           // Get businesses for establishment owners
           let business_name = '';
           let dti_certificate_no = '';
-          let registration_status = '';
+          let registration_status = 'unregistered';
           
           if (role === 'establishment') {
             const { data: businesses } = await supabase
@@ -109,7 +109,7 @@ const UserAccounts: React.FC = () => {
             if (businesses && businesses.length > 0) {
               business_name = businesses[0].business_name;
               dti_certificate_no = businesses[0].dti_certificate_no;
-              registration_status = businesses[0].registration_status;
+              registration_status = businesses[0].registration_status || 'unregistered';
             }
           }
           
@@ -119,7 +119,7 @@ const UserAccounts: React.FC = () => {
             middle_name: user.middle_name,
             last_name: user.last_name,
             email: '', // We need to get this from auth.users which we can't access directly
-            status: user.status || 'active',
+            status: user.status as UserStatus || 'active',
             role,
             business_name,
             dti_certificate_no,

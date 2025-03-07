@@ -105,7 +105,7 @@ serve(async (req) => {
 
     // Only insert if not already exists
     if (!existingApprovedUser) {
-      // 6. Add the user to the approved_users table
+      // 6. Add the user to the approved_users table with the new columns
       const { error: approvedUserError } = await supabase
         .from('approved_users')
         .insert({
@@ -114,7 +114,12 @@ serve(async (req) => {
           middle_name: pendingUser.middle_name,
           last_name: pendingUser.last_name,
           password_changed: true, // Set to true since we're using their provided password
-          status: 'active'
+          status: 'active',
+          // Add default values for new columns
+          birthday: null,
+          gender: null,
+          contact_number: null,
+          avatar_url: null
         })
 
       if (approvedUserError) {

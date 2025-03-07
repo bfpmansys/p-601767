@@ -15,6 +15,7 @@ export type Database = {
           created_at: string | null
           dti_certificate_no: string
           id: string
+          registration_status: string | null
           user_id: string
         }
         Insert: {
@@ -22,6 +23,7 @@ export type Database = {
           created_at?: string | null
           dti_certificate_no: string
           id?: string
+          registration_status?: string | null
           user_id: string
         }
         Update: {
@@ -29,6 +31,7 @@ export type Database = {
           created_at?: string | null
           dti_certificate_no?: string
           id?: string
+          registration_status?: string | null
           user_id?: string
         }
         Relationships: [
@@ -43,30 +46,45 @@ export type Database = {
       }
       approved_users: {
         Row: {
+          avatar_url: string | null
+          birthday: string | null
+          contact_number: string | null
           created_at: string | null
           first_name: string
+          gender: string | null
           id: string
           last_name: string
           middle_name: string | null
           password_changed: boolean | null
+          status: string | null
           updated_at: string | null
         }
         Insert: {
+          avatar_url?: string | null
+          birthday?: string | null
+          contact_number?: string | null
           created_at?: string | null
           first_name: string
+          gender?: string | null
           id: string
           last_name: string
           middle_name?: string | null
           password_changed?: boolean | null
+          status?: string | null
           updated_at?: string | null
         }
         Update: {
+          avatar_url?: string | null
+          birthday?: string | null
+          contact_number?: string | null
           created_at?: string | null
           first_name?: string
+          gender?: string | null
           id?: string
           last_name?: string
           middle_name?: string | null
           password_changed?: boolean | null
+          status?: string | null
           updated_at?: string | null
         }
         Relationships: []

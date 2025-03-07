@@ -1,3 +1,4 @@
+
 import { FC, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Camera, Save, X, KeyRound } from "lucide-react";
@@ -30,7 +31,7 @@ interface ProfileData {
   first_name: string;
   middle_name: string | null;
   last_name: string;
-  birthday: string;
+  birthday: string | null;
   gender: string | null;
   contact_number: string | null;
   avatar_url: string | null;
@@ -59,7 +60,7 @@ const EditProfile: FC = () => {
       }
 
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
+        .from('approved_users')
         .select('*')
         .eq('id', user.id)
         .single();
@@ -82,6 +83,8 @@ const EditProfile: FC = () => {
         first_name: profile.first_name,
         middle_name: profile.middle_name,
         last_name: profile.last_name,
+        birthday: profile.birthday,
+        gender: profile.gender,
         contact_number: profile.contact_number,
         avatar_url: profile.avatar_url,
       });
@@ -101,7 +104,7 @@ const EditProfile: FC = () => {
 
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('approved_users')
         .update({
           first_name: profileData.first_name,
           middle_name: profileData.middle_name,
@@ -204,7 +207,7 @@ const EditProfile: FC = () => {
         .getPublicUrl(filePath);
 
       const { error: updateError } = await supabase
-        .from('profiles')
+        .from('approved_users')
         .update({ avatar_url: publicUrl })
         .eq('id', profileData.id);
 
@@ -328,7 +331,7 @@ const EditProfile: FC = () => {
               <Label>Birthday</Label>
               <Input
                 type="date"
-                value={profileData.birthday}
+                value={profileData.birthday || ''}
                 onChange={(e) => setProfileData({ ...profileData, birthday: e.target.value })}
                 disabled={!isEditing}
                 max={new Date().toISOString().split("T")[0]}  // Set max to today's date
