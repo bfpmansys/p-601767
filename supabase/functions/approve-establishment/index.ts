@@ -16,17 +16,17 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  // Get the request body
-  const { userId } = await req.json()
-
-  if (!userId) {
-    return new Response(
-      JSON.stringify({ error: 'userId is required' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-    )
-  }
-
   try {
+    // Get the request body
+    const { userId } = await req.json()
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'userId is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     console.log('Starting approval process for userId:', userId)
@@ -38,8 +38,19 @@ serve(async (req) => {
       .eq('id', userId)
       .single()
 
-    if (pendingUserError || !pendingUser) {
-      throw new Error('Pending user not found: ' + (pendingUserError?.message || ''))
+    if (pendingUserError) {
+      console.error('Pending user fetch error:', pendingUserError)
+      return new Response(
+        JSON.stringify({ error: 'Error fetching pending user: ' + pendingUserError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
+    if (!pendingUser) {
+      return new Response(
+        JSON.stringify({ error: 'Pending user not found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      )
     }
 
     // 2. Get business details for the pending user
@@ -49,14 +60,22 @@ serve(async (req) => {
       .eq('pending_user_id', userId)
 
     if (pendingBusinessesError) {
-      throw new Error('Error retrieving pending businesses: ' + pendingBusinessesError.message)
+      console.error('Error retrieving pending businesses:', pendingBusinessesError)
+      return new Response(
+        JSON.stringify({ error: 'Error retrieving pending businesses: ' + pendingBusinessesError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
     console.log('Approving user:', pendingUser.email)
 
     // Check if user's password is available
     if (!pendingUser.password) {
-      throw new Error('User password not found in pending registration')
+      console.error('User password not found in pending registration')
+      return new Response(
+        JSON.stringify({ error: 'User password not found in pending registration' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
     }
 
     // 3. Check if user already exists in auth
@@ -67,7 +86,11 @@ serve(async (req) => {
     })
 
     if (existingUsersError) {
-      throw new Error('Error checking existing users: ' + existingUsersError.message)
+      console.error('Error checking existing users:', existingUsersError)
+      return new Response(
+        JSON.stringify({ error: 'Error checking existing users: ' + existingUsersError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
     let authUser;
@@ -76,59 +99,131 @@ serve(async (req) => {
     if (existingUsers?.users && existingUsers.users.length > 0) {
       console.log('User already exists in auth, using existing user')
       authUser = existingUsers.users[0]
+    } else {
+      // If user doesn't exist, create them
+      console.log('Creating new auth user')
+      try {
+        const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
+          email: pendingUser.email,
+          password: pendingUser.password,
+          email_confirm: true,
+        })
+
+        if (createUserError) {
+          console.error('Error creating user in Auth:', createUserError)
+          return new Response(
+            JSON.stringify({ error: 'Error creating user in Auth: ' + createUserError.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          )
+        }
+
+        if (!newUser || !newUser.user) {
+          console.error('New user creation failed, no user returned')
+          return new Response(
+            JSON.stringify({ error: 'New user creation failed' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          )
+        }
+
+        authUser = newUser.user
+        console.log('Created new auth user:', authUser.id)
+      } catch (createError) {
+        console.error('Exception during user creation:', createError)
+        return new Response(
+          JSON.stringify({ error: 'Exception during user creation: ' + String(createError) }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
+      }
     }
 
-    // If user doesn't exist, create them
     if (!authUser) {
-      // Create a new user in Supabase Auth
-      const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
-        email: pendingUser.email,
-        password: pendingUser.password,
-        email_confirm: true,
-      })
+      console.error('Auth user is undefined after creation/lookup')
+      return new Response(
+        JSON.stringify({ error: 'Auth user is undefined after creation/lookup' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
+    }
 
-      if (createUserError || !newUser.user) {
-        throw new Error('Error creating user in Auth: ' + (createUserError?.message || ''))
+    console.log('Auth user id:', authUser.id)
+
+    // 4. Add the user to the approved_users table - check first if they already exist
+    const { data: existingApprovedUser } = await supabase
+      .from('approved_users')
+      .select('*')
+      .eq('id', authUser.id)
+      .single()
+
+    if (existingApprovedUser) {
+      console.log('User already exists in approved_users, skipping insert')
+    } else {
+      // Insert into approved_users
+      const { error: approvedUserError } = await supabase
+        .from('approved_users')
+        .insert({
+          id: authUser.id,
+          first_name: pendingUser.first_name,
+          middle_name: pendingUser.middle_name,
+          last_name: pendingUser.last_name,
+          status: 'active',
+          password_changed: true,
+        })
+
+      if (approvedUserError) {
+        console.error('Error creating approved user:', approvedUserError)
+        return new Response(
+          JSON.stringify({ error: 'Error creating approved user: ' + approvedUserError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
       }
 
-      authUser = newUser.user
-      console.log('Created new auth user:', authUser.id)
+      console.log('Added user to approved_users table:', authUser.id)
     }
 
-    // 4. Add the user to the approved_users table
-    const { error: approvedUserError } = await supabase
-      .from('approved_users')
-      .insert({
-        id: authUser.id,
-        first_name: pendingUser.first_name,
-        middle_name: pendingUser.middle_name,
-        last_name: pendingUser.last_name,
-        status: 'active',
-        password_changed: true,
-      })
-
-    if (approvedUserError) {
-      throw new Error('Error creating approved user: ' + approvedUserError.message)
-    }
-
-    console.log('Added user to approved_users table:', authUser.id)
-
-    // 5. Add user role
-    const { error: roleError } = await supabase
+    // 5. Check if user role already exists
+    const { data: existingRole } = await supabase
       .from('user_roles')
-      .insert({
-        user_id: authUser.id,
-        role: 'establishment'
-      })
+      .select('*')
+      .eq('user_id', authUser.id)
+      .eq('role', 'establishment')
+      .single()
 
-    if (roleError) {
-      throw new Error('Error adding user role: ' + roleError.message)
+    if (existingRole) {
+      console.log('User role already exists, skipping insert')
+    } else {
+      // Add user role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: authUser.id,
+          role: 'establishment'
+        })
+
+      if (roleError) {
+        console.error('Error adding user role:', roleError)
+        return new Response(
+          JSON.stringify({ error: 'Error adding user role: ' + roleError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
+      }
+
+      console.log('Added establishment role for user:', authUser.id)
     }
-
-    console.log('Added establishment role for user:', authUser.id)
 
     // 6. Add businesses
-    for (const business of pendingBusinesses) {
+    for (const business of pendingBusinesses || []) {
+      // Check if business already exists
+      const { data: existingBusiness } = await supabase
+        .from('approved_businesses')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .eq('business_name', business.business_name)
+        .single()
+
+      if (existingBusiness) {
+        console.log('Business already exists, skipping:', business.business_name)
+        continue
+      }
+
       const { error: businessError } = await supabase
         .from('approved_businesses')
         .insert({
@@ -139,7 +234,11 @@ serve(async (req) => {
         })
 
       if (businessError) {
-        throw new Error('Error creating approved business: ' + businessError.message)
+        console.error('Error creating approved business:', businessError)
+        return new Response(
+          JSON.stringify({ error: 'Error creating approved business: ' + businessError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
       }
       
       console.log('Added business for user:', authUser.id, business.business_name)
@@ -152,7 +251,11 @@ serve(async (req) => {
       .eq('id', userId)
 
     if (updateError) {
-      throw new Error('Error updating pending user status: ' + updateError.message)
+      console.error('Error updating pending user status:', updateError)
+      return new Response(
+        JSON.stringify({ error: 'Error updating pending user status: ' + updateError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
     console.log('Successfully completed approval process')
@@ -169,9 +272,9 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Error in approve-establishment function:', error)
+    console.error('Unhandled error in approve-establishment function:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: String(error) }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
