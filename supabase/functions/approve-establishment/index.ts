@@ -146,16 +146,25 @@ serve(async (req) => {
 
     console.log('Auth user id:', authUser.id)
 
-    // 4. Add the user to the approved_users table - check first if they already exist
-    const { data: existingApprovedUser } = await supabase
+    // 4. Check if user already exists in approved_users
+    const { data: existingApprovedUser, error: existingApprovedUserError } = await supabase
       .from('approved_users')
       .select('*')
       .eq('id', authUser.id)
-      .single()
+      .maybeSingle()
 
-    if (existingApprovedUser) {
-      console.log('User already exists in approved_users, skipping insert')
-    } else {
+    if (existingApprovedUserError) {
+      console.error('Error checking existing approved user:', existingApprovedUserError)
+      return new Response(
+        JSON.stringify({ error: 'Error checking existing approved user: ' + existingApprovedUserError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
+    }
+
+    // Only insert if user doesn't already exist in approved_users
+    if (!existingApprovedUser) {
+      console.log('Adding user to approved_users table:', authUser.id)
+      
       // Insert into approved_users
       const { error: approvedUserError } = await supabase
         .from('approved_users')
@@ -175,21 +184,32 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         )
       }
-
-      console.log('Added user to approved_users table:', authUser.id)
+      
+      console.log('Successfully added user to approved_users table')
+    } else {
+      console.log('User already exists in approved_users, skipping insert')
     }
 
     // 5. Check if user role already exists
-    const { data: existingRole } = await supabase
+    const { data: existingRole, error: existingRoleError } = await supabase
       .from('user_roles')
       .select('*')
       .eq('user_id', authUser.id)
       .eq('role', 'establishment')
-      .single()
+      .maybeSingle()
 
-    if (existingRole) {
-      console.log('User role already exists, skipping insert')
-    } else {
+    if (existingRoleError) {
+      console.error('Error checking existing role:', existingRoleError)
+      return new Response(
+        JSON.stringify({ error: 'Error checking existing role: ' + existingRoleError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
+    }
+
+    // Only insert role if it doesn't already exist
+    if (!existingRole) {
+      console.log('Adding establishment role for user:', authUser.id)
+      
       // Add user role
       const { error: roleError } = await supabase
         .from('user_roles')
@@ -205,25 +225,37 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         )
       }
-
-      console.log('Added establishment role for user:', authUser.id)
+      
+      console.log('Successfully added establishment role for user')
+    } else {
+      console.log('User role already exists, skipping insert')
     }
 
     // 6. Add businesses
     for (const business of pendingBusinesses || []) {
       // Check if business already exists
-      const { data: existingBusiness } = await supabase
+      const { data: existingBusiness, error: existingBusinessError } = await supabase
         .from('approved_businesses')
         .select('*')
         .eq('user_id', authUser.id)
         .eq('business_name', business.business_name)
-        .single()
+        .maybeSingle()
+
+      if (existingBusinessError) {
+        console.error('Error checking existing business:', existingBusinessError)
+        return new Response(
+          JSON.stringify({ error: 'Error checking existing business: ' + existingBusinessError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
+      }
 
       if (existingBusiness) {
         console.log('Business already exists, skipping:', business.business_name)
         continue
       }
 
+      console.log('Adding business for user:', authUser.id, business.business_name)
+      
       const { error: businessError } = await supabase
         .from('approved_businesses')
         .insert({
@@ -241,7 +273,7 @@ serve(async (req) => {
         )
       }
       
-      console.log('Added business for user:', authUser.id, business.business_name)
+      console.log('Successfully added business for user')
     }
 
     // 7. Update pending_user status

@@ -48,8 +48,8 @@ const EstablishmentLoginCard: React.FC = () => {
       
       console.log("User authenticated:", authData.user.id);
       
-      // Check if user has the establishment role, using a function we can invoke
-      const { data: functionData, error: functionError } = await supabase.rpc(
+      // Check if user has the establishment role
+      const { data: hasRoleData, error: hasRoleError } = await supabase.rpc(
         'has_role',
         { 
           _user_id: authData.user.id,
@@ -57,58 +57,77 @@ const EstablishmentLoginCard: React.FC = () => {
         }
       );
       
-      if (functionError) {
-        console.error("Role check error:", functionError);
-        throw functionError;
+      if (hasRoleError) {
+        console.error("Role check error:", hasRoleError);
+        throw new Error("Error verifying your permissions. Please try again.");
       }
       
-      // If user does not have the role
-      if (!functionData) {
-        console.log("No establishment role found, checking pending status");
+      // Check if user exists in approved_users table
+      const { data: approvedUserData, error: approvedUserError } = await supabase
+        .from('approved_users')
+        .select('*')
+        .eq('id', authData.user.id)
+        .maybeSingle();
         
-        // Check if the user has an approved pending registration
+      if (approvedUserError) {
+        console.error("Approved user check error:", approvedUserError);
+        throw new Error("Error verifying your account status. Please try again.");
+      }
+      
+      // If user does not have the role or is not in approved_users
+      if (!hasRoleData || !approvedUserData) {
+        console.log("No establishment role or approved user record found, checking pending status");
+        
+        // Check if the user has a pending registration
         const { data: pendingData, error: pendingError } = await supabase
           .from('pending_users')
           .select('*')
           .eq('email', data.email)
-          .eq('status', 'approved')
           .maybeSingle();
         
         if (pendingError) {
           console.error("Pending check error:", pendingError);
-          throw pendingError;
+          throw new Error("Error checking registration status. Please try again.");
         }
         
         if (pendingData) {
-          // User is approved but role hasn't been assigned yet
-          // We need to call the edge function to assign the role
-          try {
-            const response = await fetch(`${window.location.origin}/api/assign-establishment-role`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-              },
-              body: JSON.stringify({ userId: authData.user.id })
-            });
-            
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.error || "Failed to assign role");
+          // User exists in pending_users
+          if (pendingData.status === 'approved') {
+            // User is approved but role/profile hasn't been assigned yet
+            try {
+              // Call the edge function to complete the approval process
+              const response = await fetch(`${window.location.origin}/api/approve-establishment`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+                },
+                body: JSON.stringify({ userId: pendingData.id })
+              });
+              
+              if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Failed to complete registration");
+              }
+              
+              console.log("Establishment approval process completed");
+              toast.success("Your account has been fully activated. Welcome!");
+              // Continue to login success flow
+            } catch (e) {
+              console.error("Failed to complete approval process:", e);
+              throw new Error("Error activating your account. Please contact support.");
             }
-            
-            console.log("Establishment role assigned to user");
-          } catch (e) {
-            console.error("Failed to assign role:", e);
-            throw new Error("Error assigning establishment role. Please contact support.");
+          } else {
+            // User is still pending approval
+            throw new Error("Your registration is pending approval by an administrator.");
           }
         } else {
-          throw new Error("You don't have establishment owner permissions. Your registration might be pending approval.");
+          throw new Error("You don't have establishment owner permissions. Please register first.");
         }
       }
       
       localStorage.setItem('establishmentAuthenticated', 'true');
-      localStorage.setItem('userId', authData.user.id);
+      localStorage.setItem('userId', authUser.id);
       
       toast.success("Welcome, Establishment Owner!");
       navigate("/establishment/dashboard");
